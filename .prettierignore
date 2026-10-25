@@ -5,3 +5,7 @@ node_modules
 .next
 *.html
 *.scss
+package-lock.json
+public/**/*.gltf
+public/draco
+.claude

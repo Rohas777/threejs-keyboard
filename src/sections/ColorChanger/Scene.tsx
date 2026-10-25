@@ -1,89 +1,89 @@
 'use client';
 
-import { Keyboard } from '@/components/Keyboard';
+import { Keyboard } from '@/components/three/Keyboard';
+import { STAGE_ENVIRONMENT_FILES } from '@/components/three/environment';
+import { DEFAULT_KEYCAP_TEXTURE, KEYCAP_TEXTURES } from '@/data/keycapTextures';
+import { gsap, MOTION_OK, MOTION_REDUCED, useGSAP } from '@/lib/gsap';
 import { Stage, useTexture } from '@react-three/drei';
-import { KEYCAP_TEXTURES } from '.';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
-
-gsap.registerPlugin(useGSAP);
 
 type SceneProps = {
     selectedTextureId: string;
     onAnimationComplete: () => void;
 };
 
+function knobColorOf(textureId: string) {
+    return (KEYCAP_TEXTURES.find((texture) => texture.id === textureId) ?? DEFAULT_KEYCAP_TEXTURE).knobColor;
+}
+
 export const Scene = ({ selectedTextureId, onAnimationComplete }: SceneProps) => {
-    const texturePaths = KEYCAP_TEXTURES.map((t) => t.path);
-    const textures = useTexture(texturePaths);
-
-    const changeKnobColor = useCallback(() => {
-        return KEYCAP_TEXTURES.find((t) => t.id === selectedTextureId)?.knobColor || KEYCAP_TEXTURES[0].knobColor;
-    }, [selectedTextureId]);
-
+    const textures = useTexture(KEYCAP_TEXTURES.map((texture) => texture.path));
     const [currentTextureId, setCurrentTextureId] = useState(selectedTextureId);
-    const [currentKnobColor, setCurrentKnobColor] = useState(changeKnobColor());
-
+    const appliedTextureIdRef = useRef(selectedTextureId);
     const keyboardRef = useRef<THREE.Group>(null);
 
-    useGSAP(() => {
-        if (!keyboardRef.current || selectedTextureId === currentTextureId) return;
+    useGSAP(
+        () => {
+            if (selectedTextureId === appliedTextureIdRef.current) return;
 
-        const mm = gsap.matchMedia();
-        mm.add('(prefers-reduced-motion: no-preference)', () => {
-            const keyboard = keyboardRef.current;
-            if (!keyboard) return;
+            const applySelection = () => {
+                appliedTextureIdRef.current = selectedTextureId;
+                setCurrentTextureId(selectedTextureId);
+            };
 
-            const tl = gsap.timeline({
-                onComplete: () => {
-                    onAnimationComplete();
-                },
+            const mm = gsap.matchMedia();
+
+            mm.add(MOTION_OK, () => {
+                const keyboard = keyboardRef.current;
+                if (!keyboard) return;
+
+                gsap.timeline({ onComplete: onAnimationComplete })
+                    .to(keyboard.position, { y: 0.3, duration: 0.4, ease: 'power2.out', onComplete: applySelection })
+                    .to(keyboard.position, { y: 0, duration: 0.6, ease: 'elastic.out(1,0.4)' });
             });
-            tl.to(keyboard.position, {
-                y: 0.3,
-                duration: 0.4,
-                ease: 'power2.out',
-                onComplete: () => {
-                    setCurrentTextureId(selectedTextureId);
-                    setCurrentKnobColor(changeKnobColor());
-                },
-            });
-            tl.to(keyboard.position, { y: 0, duration: 0.6, ease: 'elastic.out(1,0.4)' });
-        });
 
-        mm.add('(prefers-reduced-motion: reduce)', () => {
-            setCurrentTextureId(selectedTextureId);
-            onAnimationComplete();
-        });
-    }, [selectedTextureId, currentTextureId]);
+            mm.add(MOTION_REDUCED, () => {
+                applySelection();
+                onAnimationComplete();
+            });
+        },
+        { dependencies: [selectedTextureId], revertOnUpdate: true },
+    );
 
     const materials = useMemo(() => {
-        const materialMap: { [key: string]: THREE.MeshStandardMaterial } = {};
+        const materialMap = new Map<string, THREE.MeshStandardMaterial>();
 
         KEYCAP_TEXTURES.forEach((textureConfig, index) => {
-            const texture = Array.isArray(textures) ? textures[index] : textures;
-
-            if (texture) {
-                texture.flipY = false;
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.minFilter = THREE.LinearFilter;
-
-                materialMap[textureConfig.id] = new THREE.MeshStandardMaterial({
-                    map: texture,
-                    roughness: 0.7,
-                });
-            }
+            // NOTE A clone shares the decoded image but keeps the filter settings local to this scene,
+            // so the cached texture used by the hero keyboard stays untouched.
+            const texture = textures[index].clone();
+            texture.flipY = false;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.minFilter = THREE.LinearFilter;
+            materialMap.set(textureConfig.id, new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7 }));
         });
 
         return materialMap;
     }, [textures]);
 
+    useEffect(
+        () => () =>
+            materials.forEach((material) => {
+                material.map?.dispose();
+                material.dispose();
+            }),
+        [materials],
+    );
+
     return (
-        <Stage environment={{ environmentIntensity: 0.6, preset: 'city' }} intensity={0.0001} shadows="contact">
+        <Stage
+            environment={{ environmentIntensity: 0.6, files: STAGE_ENVIRONMENT_FILES }}
+            intensity={0.0001}
+            shadows={{ type: 'contact', frames: 1 }}
+        >
             <group ref={keyboardRef}>
-                <Keyboard keycapMaterial={materials[currentTextureId]} knobColor={currentKnobColor} />
+                <Keyboard keycapMaterial={materials.get(currentTextureId)} knobColor={knobColorOf(currentTextureId)} />
             </group>
         </Stage>
     );

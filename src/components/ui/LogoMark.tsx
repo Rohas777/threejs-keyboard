@@ -1,7 +1,11 @@
+import { useId } from 'react';
+
 export function LogoMark(props: React.SVGProps<SVGSVGElement>) {
+    const clipId = useId();
+
     return (
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 398 399" fill="none" {...props}>
-            <g clipPath="url(#logomark)">
+            <g clipPath={`url(#${clipId})`}>
                 <rect width="397.6" height="397.6" x="0.4" y="0.6" fill="#F0771F" rx="108"></rect>
                 <path
                     fill="#FFA631"
@@ -23,7 +27,7 @@ export function LogoMark(props: React.SVGProps<SVGSVGElement>) {
                 ></path>
             </g>
             <defs>
-                <clipPath id="logomark">
+                <clipPath id={clipId}>
                     <rect width="397.6" height="397.6" x="0.4" y="0.6" fill="#fff" rx="108"></rect>
                 </clipPath>
             </defs>

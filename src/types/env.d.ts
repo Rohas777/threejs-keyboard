@@ -1,4 +1,9 @@
-declare module '*.css' {
-  const content: Record<string, string>;
-  export default content;
+import 'react';
+
+declare module 'react' {
+    /** Custom properties of the variable-font utilities in `globals.css`. */
+    interface CSSProperties {
+        '--wdth'?: number;
+        '--wght'?: number;
+    }
 }

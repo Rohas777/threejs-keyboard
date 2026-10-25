@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nimbus Keyboards
 
-## Getting Started
+Демо-проект: лендинг вымышленной механической клавиатуры Vapor75 с интерактивными 3D-сценами. Это не коммерческий продукт, а портфолио-работа. Она показывает, как я работаю с WebGL, анимациями, производительностью и архитектурой фронтенда.
 
-First, run the development server:
+## Что показывает проект
+
+- **3D в React.** Сцены на three.js и @react-three/fiber:
+    - клавиатура, которая собирается в интро и «волной» поднимает клавиши при скролле;
+    - галерея свитчей со звуком нажатия;
+    - смена расцветки кейкапов в реальном времени.
+- **Анимации.** GSAP и ScrollTrigger: интро, скролл-таймлайны, посимвольное появление заголовка (SplitText), вариативный шрифт, реагирующий на курсор. Всё учитывает `prefers-reduced-motion`.
+- **Производительность WebGL.**
+    - 80 свитчей рендерятся через `InstancedMesh` с общим буфером матриц.
+    - Материалы создаются один раз, а анимации идут через refs, без ререндеров React.
+    - Канвасы ниже первого экрана монтируются лениво и останавливают рендер вне вьюпорта.
+    - Тени и `dpr` ограничены, Draco-декодер и HDR-окружения размещены в самом проекте.
+- **Архитектура.**
+    - Данные (раскладка клавиатуры, наборы кейкапов, свитчи, навигация) отделены от компонентов.
+    - Общая логика вынесена в хуки, чистые функции — в `lib/` и покрыты тестами.
+- **Качество кода.** Строгий TypeScript, ESLint, Prettier, юнит-тесты на Vitest и Testing Library.
+
+## Стек
+
+- [Next.js 15](https://nextjs.org) (App Router, Turbopack), React 19, TypeScript
+- [three.js](https://threejs.org), [@react-three/fiber](https://r3f.docs.pmnd.rs), [drei](https://drei.docs.pmnd.rs)
+- [GSAP](https://gsap.com): ScrollTrigger, SplitText
+- Tailwind CSS 4, [tw-animate-css](https://github.com/Wombosvideo/tw-animate-css), Radix Dialog
+- Вариативный шрифт Roboto Flex через `next/font`
+- Vitest, Testing Library
+
+## Запуск
+
+Нужен Node.js 22 или новее.
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Сайт откроется на [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Скрипт          | Назначение              |
+| --------------- | ----------------------- |
+| `npm run dev`   | Дев-сервер на Turbopack |
+| `npm run build` | Продакшен-сборка        |
+| `npm run start` | Запуск продакшен-сборки |
+| `npm run lint`  | ESLint                  |
+| `npm test`      | Юнит-тесты (Vitest)     |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Форматирование проверяется командой `npx prettier --check .`.
 
-## Learn More
+## Структура
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/                 layout, страница, глобальные стили
+  sections/            секции лендинга (Hero, BentoBox, Switches, ColorChanger, Marquee, PurchaseButton)
+  components/
+    layout/            Navbar, Footer, Bounded
+    three/             3D-модели (Keyboard, Keycap, Switch), раскладка клавиатуры, хелперы сцен
+    ui/                FadeIn, Loader, логотипы
+  data/                наборы кейкапов, свитчи, навигация
+  hooks/               reduced motion, видимость канваса, пул звуков, checkout
+  lib/                 настройка GSAP и чистые функции (тайминг волны, оси шрифта, звук)
+public/
+  *.gltf, *.bin        модели со сжатием Draco
+  draco/               Draco-декодер (копия из three/examples/jsm/libs/draco/gltf)
+  hdr/                 карты окружения (potsdamer_platz_1k.hdr — пресет `city` из drei)
+  sounds/              звуки нажатия свитчей
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Ограничения демо
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Магазина нет: кнопки «Buy» запускают заглушку оформления заказа (`src/hooks/useCheckout.ts`).
+- Бренд Nimbus и клавиатура Vapor75 вымышлены.

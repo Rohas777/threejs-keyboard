@@ -1,7 +1,8 @@
-import { ReactNode } from 'react';
+import { Logo } from '@/components/ui/Logo';
+import { SECTION_LINKS } from '@/data/navigation';
 import Link from 'next/link';
-import { Logo } from './Logo';
 import { Bounded } from './Bounded';
+import { CurrentYear } from './CurrentYear';
 
 export function Footer() {
     return (
@@ -13,32 +14,21 @@ export function Footer() {
                         <span className="sr-only">Nimbus home</span>
                     </Link>
                     <p className="mt-4 text-center text-sm md:text-left">
-                        © {new Date().getFullYear()} Nimbus Keyboards. All rights reserved.
+                        © <CurrentYear /> Nimbus Keyboards. All rights reserved.
                     </p>
                 </div>
                 <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 md:justify-end">
-                    <FooterLink href="/products">Products</FooterLink>
-                    <FooterLink href="/about">About</FooterLink>
-                    <FooterLink href="/support">Support</FooterLink>
-                    <FooterLink href="/contact">Contact</FooterLink>
+                    {SECTION_LINKS.map((link) => (
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            className="text-sm transition-colors hover:text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+                        >
+                            {link.title}
+                        </Link>
+                    ))}
                 </nav>
             </div>
         </Bounded>
-    );
-}
-
-type FooterLinkProps = {
-    href: string;
-    children: ReactNode;
-};
-
-function FooterLink({ href, children }: FooterLinkProps) {
-    return (
-        <Link
-            href={href}
-            className="text-sm transition-colors hover:text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-        >
-            {children}
-        </Link>
     );
 }

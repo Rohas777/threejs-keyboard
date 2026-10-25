@@ -8,5 +8,5 @@
     "bracketSameLine": false,
     "arrowParens": "always",
     "printWidth": 120,
-    "endOfLine": "crlf"
+    "endOfLine": "auto"
 }

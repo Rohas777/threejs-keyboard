@@ -1,8 +1,8 @@
+import { Footer } from '@/components/layout/Footer';
+import { Navbar } from '@/components/layout/Navbar';
 import type { Metadata } from 'next';
 import { Roboto_Flex } from 'next/font/google';
 import './globals.css';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
 
 const robotoFlex = Roboto_Flex({
     variable: '--font-roboto-flex',
@@ -22,8 +22,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
-            <body className={`${robotoFlex.variable} antialiased`}>
+        <html lang="en" className={robotoFlex.variable}>
+            <body className="antialiased">
                 <Navbar />
                 {children}
                 <Footer />
@@ -31,4 +31,3 @@ export default function RootLayout({
         </html>
     );
 }
-

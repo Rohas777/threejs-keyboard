@@ -1,16 +1,20 @@
 'use client';
 
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
+import { gsap, useGSAP } from '@/lib/gsap';
 import { useRef } from 'react';
 
-gsap.registerPlugin(useGSAP);
+type LoaderProps = {
+    /** The keycap animation runs only while the loader is active. */
+    active: boolean;
+};
 
-export function Loader() {
+export function Loader({ active }: LoaderProps) {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useGSAP(
         () => {
+            if (!active) return;
+
             const tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
 
             tl.to('.keycap', {
@@ -29,7 +33,7 @@ export function Loader() {
                 '.2',
             );
         },
-        { scope: containerRef },
+        { scope: containerRef, dependencies: [active], revertOnUpdate: true },
     );
 
     return (

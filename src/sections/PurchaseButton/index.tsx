@@ -19,8 +19,10 @@ const PurchaseButton = () => {
         const text = textRef.current;
         if (!button || !text) return;
 
-        const toWdth = gsap.quickTo(text, '--wdth', { duration: 0.3, ease: 'power2.inOut' });
-        const toWght = gsap.quickTo(text, '--wght', { duration: 0.3, ease: 'power2.inOut' });
+        // NOTE An "out" ease starts at full speed, so the label reacts on the very next frame after the pointer moves.
+        const follow = { duration: 0.15, ease: 'power3.out' };
+        const toWdth = gsap.quickTo(text, '--wdth', follow);
+        const toWght = gsap.quickTo(text, '--wght', follow);
 
         const handleMouseMove = (event: MouseEvent) => {
             const rect = button.getBoundingClientRect();

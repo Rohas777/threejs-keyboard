@@ -1,6 +1,6 @@
 'use client';
 
-import { gsap, MOTION_OK, useGSAP } from '@/lib/gsap';
+import { gsap, MOTION_OK, settleOnFirstRefresh, useGSAP } from '@/lib/gsap';
 import clsx from 'clsx';
 import { ReactNode, useRef } from 'react';
 
@@ -33,7 +33,7 @@ export const FadeIn = ({ children, className, targetChildren = false }: FadeInPr
                         duration: 0.8,
                         ease: 'power3.out',
                         stagger: 0.2,
-                        scrollTrigger: { trigger: container, start: 'top 50%' },
+                        scrollTrigger: { trigger: container, start: 'top 50%', ...settleOnFirstRefresh() },
                     },
                 );
             });

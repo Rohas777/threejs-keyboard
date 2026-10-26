@@ -2,13 +2,17 @@
 
 import { Keyboard, KeyboardHandle } from '@/components/three/Keyboard';
 import { Keycap } from '@/components/three/Keycap';
+import { SceneWarmUp } from '@/components/three/SceneWarmUp';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
-import { gsap, MOTION_OK, useGSAP } from '@/lib/gsap';
+import { gsap, MOTION_OK, MOTION_REDUCED, settleOnFirstRefresh, useGSAP } from '@/lib/gsap';
 import { waveStartTimes } from '@/lib/wave';
 import { Environment, PerspectiveCamera } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { INTRO_END_POSE, shouldPlayIntro } from './intro';
+
+const ENVIRONMENT_FILES = ['/hdr/blue-studio.hdr'];
 
 const CAMERA_POSITION = new THREE.Vector3(0, 0, 4);
 const CAMERA_TILT = 0.3;
@@ -60,9 +64,23 @@ const CameraController = () => {
     return null;
 };
 
+/**
+ * NOTE drei's Environment re-applies `environmentIntensity` on every render, which would override the intro
+ * fade-in; memoization keeps it from re-rendering, so the intensity on the scene stays owned by GSAP.
+ */
+const HeroEnvironment = memo(function HeroEnvironment({ intensity }: { intensity: number }) {
+    return <Environment files={ENVIRONMENT_FILES} environmentIntensity={intensity} />;
+});
+
 function addScrollTimeline(keyboard: THREE.Group, keycaps: THREE.Group, handle: KeyboardHandle) {
     const scrollTimeline = gsap.timeline({
-        scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom bottom', scrub: 1 },
+        scrollTrigger: {
+            trigger: '.hero',
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 1,
+            ...settleOnFirstRefresh(),
+        },
     });
 
     scrollTimeline
@@ -96,9 +114,9 @@ function addScrollTimeline(keyboard: THREE.Group, keycaps: THREE.Group, handle: 
 }
 
 type SceneProps = {
-    /** Called once the scene and its assets are mounted. */
+    /** Called once the assets are loaded and the scene is compiled and rendered for the first time. */
     onReady: () => void;
-    /** Called when the intro animation finishes and the page becomes scrollable. */
+    /** Called when the intro animation finishes; not called when the intro is skipped. */
     onIntroComplete: () => void;
 };
 
@@ -109,11 +127,18 @@ export const Scene = ({ onReady, onIntroComplete }: SceneProps) => {
     const spotLightRef = useRef<THREE.SpotLight>(null);
     const scene = useThree((state) => state.scene);
     const viewportWidth = useThree((state) => state.size.width);
+    // NOTE The scene starts dark when the intro plays, so the first rendered frame already matches the fade-in.
+    const [lightScale] = useState(() => (shouldPlayIntro() ? 0 : 1));
+    const [isWarm, setIsWarm] = useState(false);
+    const handleWarm = useCallback(() => setIsWarm(true), []);
 
-    useEffect(onReady, [onReady]);
+    useEffect(() => {
+        if (isWarm) onReady();
+    }, [isWarm, onReady]);
 
     useGSAP(
         () => {
+            if (!isWarm) return;
             const mm = gsap.matchMedia();
 
             mm.add(MOTION_OK, (context) => {
@@ -123,35 +148,34 @@ export const Scene = ({ onReady, onIntroComplete }: SceneProps) => {
                 const handle = keyboardRef.current;
                 if (!keyboard || !keycaps || !spotLight || !handle) return;
 
-                const lightIn = { duration: 3.5, delay: 0.5, ease: 'power2.inOut' };
-                gsap.fromTo(spotLight, { intensity: 0 }, { ...lightIn, intensity: SPOT_INTENSITY });
-                gsap.fromTo(
-                    scene,
-                    { environmentIntensity: 0 },
-                    { ...lightIn, environmentIntensity: ENVIRONMENT_INTENSITY },
-                );
+                if (!shouldPlayIntro()) {
+                    gsap.set(keyboard.position, INTRO_END_POSE.position);
+                    gsap.set(keyboard.rotation, INTRO_END_POSE.rotation);
+                    addScrollTimeline(keyboard, keycaps, handle);
+                    return;
+                }
 
-                const lockScroll = window.scrollY === 0;
-                const unlockScroll = () => {
-                    if (lockScroll) document.body.style.overflow = '';
-                };
-                if (lockScroll) document.body.style.overflow = 'hidden';
+                const lightIn = { duration: 3.5, delay: 0.5, ease: 'power2.inOut' };
+                gsap.to(spotLight, { ...lightIn, intensity: SPOT_INTENSITY });
+                gsap.to(scene, { ...lightIn, environmentIntensity: ENVIRONMENT_INTENSITY });
 
                 gsap.timeline({ defaults: { ease: 'power2.inOut' } })
                     .to(keyboard.position, { x: 0, y: -0.5, z: 0.5, duration: 2 })
                     .to(keyboard.rotation, { x: 1.4, y: 0, z: 0, duration: 1.8 }, '<')
-                    .to(keyboard.position, { x: 0.2, y: -0.5, z: 1.8, duration: 2, delay: 0.5 })
-                    .to(keyboard.rotation, { x: 1.6, y: 0.4, z: 0, duration: 2 }, '<')
+                    .to(keyboard.position, { ...INTRO_END_POSE.position, duration: 2, delay: 0.5 })
+                    .to(keyboard.rotation, { ...INTRO_END_POSE.rotation, duration: 2 }, '<')
                     .call(() => {
-                        unlockScroll();
                         onIntroComplete();
                         context.add(() => addScrollTimeline(keyboard, keycaps, handle));
                     });
+            });
 
-                return unlockScroll;
+            mm.add(MOTION_REDUCED, () => {
+                if (spotLightRef.current) gsap.set(spotLightRef.current, { intensity: SPOT_INTENSITY });
+                gsap.set(scene, { environmentIntensity: ENVIRONMENT_INTENSITY });
             });
         },
-        { dependencies: [scene, onIntroComplete], revertOnUpdate: true },
+        { dependencies: [scene, onIntroComplete, isWarm], revertOnUpdate: true },
     );
 
     const scalingFactor = viewportWidth <= 500 ? 0.5 : 1;
@@ -180,11 +204,13 @@ export const Scene = ({ onReady, onIntroComplete }: SceneProps) => {
                 </group>
             </group>
 
-            <Environment files={['/hdr/blue-studio.hdr']} environmentIntensity={ENVIRONMENT_INTENSITY} />
+            <HeroEnvironment intensity={ENVIRONMENT_INTENSITY * lightScale} />
+            {/* NOTE Shaders compile before the first visible frame, while the loader still covers the scene. */}
+            <SceneWarmUp onWarm={handleWarm} />
             <spotLight
                 ref={spotLightRef}
                 position={[-2, 1.5, 3]}
-                intensity={SPOT_INTENSITY}
+                intensity={SPOT_INTENSITY * lightScale}
                 castShadow
                 shadow-bias={-0.0002}
                 shadow-normalBias={0.002}

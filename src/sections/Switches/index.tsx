@@ -2,12 +2,15 @@
 
 import { Bounded } from '@/components/layout/Bounded';
 import { CanvasErrorBoundary } from '@/components/three/CanvasErrorBoundary';
+import { CANVAS_DEFAULTS } from '@/components/three/canvasDefaults';
+import { SceneWarmUp } from '@/components/three/SceneWarmUp';
 import { STAGE_ENVIRONMENT_FILES } from '@/components/three/environment';
 import { Switch } from '@/components/three/Switch';
 import { FadeIn } from '@/components/ui/FadeIn';
 import { SwitchColor, SwitchItem, SWITCHES } from '@/data/switches';
 import { useAudioPool } from '@/hooks/useAudioPool';
 import { useCanvasVisibility } from '@/hooks/useCanvasVisibility';
+import { useWarmUp } from '@/hooks/useWarmUp';
 import { playAudio } from '@/lib/sound';
 import { Stage } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
@@ -47,6 +50,7 @@ export default Switches;
 
 const SwitchCard = ({ item }: { item: SwitchItem }) => {
     const { ref, isNear, wasNear } = useCanvasVisibility<HTMLDivElement>();
+    const { isDue: isWarmUpDue, markWarm } = useWarmUp();
     const pickSound = useAudioPool(item.sounds, SOUND_VOLUME);
 
     const handleSound = () => {
@@ -65,11 +69,11 @@ const SwitchCard = ({ item }: { item: SwitchItem }) => {
                 <LuVolume2 />
             </button>
 
-            {wasNear && (
-                <CanvasErrorBoundary>
+            {(wasNear || isWarmUpDue) && (
+                <CanvasErrorBoundary onError={markWarm}>
                     <Canvas
                         camera={{ position: [1.5, 2, 0], fov: 7 }}
-                        dpr={[1, 1.5]}
+                        {...CANVAS_DEFAULTS}
                         frameloop={isNear ? 'always' : 'never'}
                     >
                         <Stage
@@ -80,6 +84,7 @@ const SwitchCard = ({ item }: { item: SwitchItem }) => {
                         >
                             <Switch rotation={[0, Math.PI / 4, 0]} item={item} />
                         </Stage>
+                        <SceneWarmUp onWarm={markWarm} />
                     </Canvas>
                 </CanvasErrorBoundary>
             )}

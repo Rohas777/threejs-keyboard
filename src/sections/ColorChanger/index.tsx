@@ -2,8 +2,10 @@
 
 import { Bounded } from '@/components/layout/Bounded';
 import { CanvasErrorBoundary } from '@/components/three/CanvasErrorBoundary';
+import { CANVAS_DEFAULTS } from '@/components/three/canvasDefaults';
 import { DEFAULT_KEYCAP_TEXTURE, KEYCAP_TEXTURES, KeycapTexture } from '@/data/keycapTextures';
 import { useCanvasVisibility } from '@/hooks/useCanvasVisibility';
+import { useWarmUp } from '@/hooks/useWarmUp';
 import { Canvas } from '@react-three/fiber';
 import clsx from 'clsx';
 import Image from 'next/image';
@@ -14,6 +16,7 @@ const ColorChanger = () => {
     const [selectedTexture, setSelectedTexture] = useState<KeycapTexture>(DEFAULT_KEYCAP_TEXTURE);
     const [isAnimating, setIsAnimating] = useState(false);
     const { ref: sectionRef, isNear, wasNear } = useCanvasVisibility<HTMLElement>();
+    const { isDue: isWarmUpDue, markWarm } = useWarmUp();
 
     const handleTextureSelect = (texture: KeycapTexture) => {
         if (texture.id === selectedTexture.id || isAnimating) return;
@@ -25,6 +28,10 @@ const ColorChanger = () => {
     const handleAnimationComplete = useCallback(() => {
         setIsAnimating(false);
     }, []);
+    const handleSceneError = useCallback(() => {
+        handleAnimationComplete();
+        markWarm();
+    }, [handleAnimationComplete, markWarm]);
 
     return (
         <section
@@ -53,16 +60,17 @@ const ColorChanger = () => {
             </svg>
 
             <div className="-mb-[10vh] grow">
-                {wasNear && (
-                    <CanvasErrorBoundary onError={handleAnimationComplete}>
+                {(wasNear || isWarmUpDue) && (
+                    <CanvasErrorBoundary onError={handleSceneError}>
                         <Canvas
                             camera={{ position: [0, 0.5, 0.5], fov: 45, zoom: 1.5 }}
-                            dpr={[1, 1.5]}
+                            {...CANVAS_DEFAULTS}
                             frameloop={isNear ? 'always' : 'never'}
                         >
                             <Scene
                                 selectedTextureId={selectedTexture.id}
                                 onAnimationComplete={handleAnimationComplete}
+                                onWarm={markWarm}
                             />
                         </Canvas>
                     </CanvasErrorBoundary>

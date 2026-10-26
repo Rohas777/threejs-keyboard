@@ -22,7 +22,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className={robotoFlex.variable}>
+        <html lang="en" className={robotoFlex.variable} data-scroll-locked="">
             <body className="antialiased">
                 <Navbar />
                 {children}

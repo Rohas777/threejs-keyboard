@@ -2,13 +2,17 @@
 
 import { Bounded } from '@/components/layout/Bounded';
 import { CanvasErrorBoundary } from '@/components/three/CanvasErrorBoundary';
+import { CANVAS_DEFAULTS } from '@/components/three/canvasDefaults';
 import { Loader } from '@/components/ui/Loader';
 import { useCanvasVisibility } from '@/hooks/useCanvasVisibility';
 import { useCheckout } from '@/hooks/useCheckout';
-import { gsap, MOTION_OK, MOTION_REDUCED, SplitText, useGSAP } from '@/lib/gsap';
+import { gsap, MOTION_OK, MOTION_REDUCED, settleOnFirstRefresh, SplitText, useGSAP } from '@/lib/gsap';
+import { restoreScrollPosition, unlockScroll } from '@/lib/scroll';
+import { startWarmUp } from '@/lib/warmUp';
 import { Canvas } from '@react-three/fiber';
 import clsx from 'clsx';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { shouldPlayIntro } from './intro';
 import { Scene } from './Scene';
 
 const Hero = () => {
@@ -18,15 +22,26 @@ const Hero = () => {
     const { ref: sectionRef, isNear } = useCanvasVisibility<HTMLElement>();
     const { checkout, isPending } = useCheckout();
 
-    const handleSceneReady = useCallback(() => setIsSceneReady(true), []);
+    // NOTE Runs before every scroll-driven animation on the page is created, so they start from the restored position.
+    useLayoutEffect(() => restoreScrollPosition(), []);
+
+    const releasePage = useCallback(() => {
+        unlockScroll();
+        startWarmUp();
+    }, []);
+    const handleSceneReady = useCallback(() => {
+        setIsSceneReady(true);
+        if (!shouldPlayIntro()) releasePage();
+    }, [releasePage]);
     const handleIntroComplete = useCallback(() => {
+        releasePage();
         isIntroCompleteRef.current = true;
         headingTimelineRef.current?.play();
-    }, []);
+    }, [releasePage]);
     const handleSceneError = useCallback(() => {
-        handleSceneReady();
+        setIsSceneReady(true);
         handleIntroComplete();
-    }, [handleSceneReady, handleIntroComplete]);
+    }, [handleIntroComplete]);
 
     useGSAP(() => {
         const mm = gsap.matchMedia();
@@ -38,10 +53,12 @@ const Hero = () => {
                 linesClass: 'line++',
             });
 
-            headingTimelineRef.current = gsap
+            const headingTimeline = gsap
                 .timeline({ paused: !isIntroCompleteRef.current })
                 .from(split.chars, { opacity: 0, y: -120, ease: 'back', duration: 0.4, stagger: 0.07 })
                 .to('.hero-body', { opacity: 1, duration: 0.6, ease: 'power2.out' });
+            if (!shouldPlayIntro()) headingTimeline.progress(1);
+            headingTimelineRef.current = headingTimeline;
 
             gsap.fromTo(
                 '.hero-scene-fade',
@@ -49,7 +66,13 @@ const Hero = () => {
                 {
                     opacity: 1,
                     ease: 'none',
-                    scrollTrigger: { trigger: '.hero', start: 'top top', end: '50% bottom', scrub: 1 },
+                    scrollTrigger: {
+                        trigger: '.hero',
+                        start: 'top top',
+                        end: '50% bottom',
+                        scrub: 1,
+                        ...settleOnFirstRefresh(),
+                    },
                 },
             );
 
@@ -71,7 +94,7 @@ const Hero = () => {
             <div className="hero-scene blue-gradient-bg pointer-events-none sticky top-0 h-dvh w-full">
                 <div className="hero-scene-fade absolute inset-0 bg-white opacity-0" />
                 <CanvasErrorBoundary onError={handleSceneError}>
-                    <Canvas shadows="soft" dpr={[1, 1.5]} frameloop={isNear ? 'always' : 'never'}>
+                    <Canvas {...CANVAS_DEFAULTS} shadows="soft" frameloop={isNear && isSceneReady ? 'always' : 'never'}>
                         <Scene onReady={handleSceneReady} onIntroComplete={handleIntroComplete} />
                     </Canvas>
                 </CanvasErrorBoundary>

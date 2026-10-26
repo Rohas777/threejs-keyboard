@@ -13,6 +13,56 @@
         'wdth' var(--wdth, 74), 'slnt' var(--slnt, -10), 'opsz' var(--opsz, 100), 'wght' var(--wght, 600);
 }
 
+/*
+ * NOTE Loader keycap cycle: 0.05s press (power2.out), 0.15s hold, 0.25s bounce.out release, 2.2s pause = 2.65s.
+ * The press depth equals 15% of the keycap height inside the 868.8-unit well.
+ */
+@theme {
+    --animate-loader-keycap: loader-keycap 2.65s infinite;
+
+    @keyframes loader-keycap {
+        0% {
+            transform: translateY(0);
+            animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+        }
+        1.887% {
+            transform: translateY(14.0055%);
+        }
+        7.547% {
+            transform: translateY(14.0055%);
+            animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+        }
+        10.98% {
+            transform: translateY(0);
+            animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+        }
+        12.69% {
+            transform: translateY(3.5%);
+            animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+        }
+        14.41% {
+            transform: translateY(0);
+            animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+        }
+        15.26% {
+            transform: translateY(0.875%);
+            animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+        }
+        16.12% {
+            transform: translateY(0);
+            animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+        }
+        16.55% {
+            transform: translateY(0.22%);
+            animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+        }
+        16.98%,
+        100% {
+            transform: translateY(0);
+        }
+    }
+}
+
 @theme {
     --color-brand: #01a7e1;
     --color-brand-dark: #0196c9;
@@ -42,4 +92,12 @@
 
 .blue-gradient-bg {
     background: linear-gradient(to bottom, #000000, #0f172a, #062f4a, #7fa0b9);
+}
+
+html {
+    scrollbar-gutter: stable;
+}
+
+html[data-scroll-locked] {
+    overflow: hidden;
 }
